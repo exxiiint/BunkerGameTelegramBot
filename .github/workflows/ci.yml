@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker compose build
+
+  lint:
+    name: Lint & Format (ruff + black)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker compose build
+      - name: Ruff
+        run: docker compose run --rm bot ruff check .
+      - name: Black (check)
+        run: docker compose run --rm bot black --check .
+
+  typecheck:
+    name: Typecheck (mypy)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker compose build
+      - name: Mypy
+        run: docker compose run --rm bot mypy app
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    needs: [build, lint]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker compose build
+      - name: Run unit tests
+        run: docker compose run --rm bot pytest -q tests/unit
+
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker compose build
+      - name: Start services
+        run: docker compose up -d postgres
+      - name: Run integration tests
+        run: docker compose run --rm bot pytest -q tests/integration
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
+
+  smoke:
+    name: Smoke (compose up)
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start all services
+        run: docker compose up -d
+      - name: Show running containers
+        run: docker ps
+      - name: Logs (bot)
+        run: docker compose logs --no-color bot | tail -n 200
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
