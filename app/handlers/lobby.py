@@ -110,7 +110,7 @@ async def cb_lobby_actions(callback: CallbackQuery) -> None:
         active_name = mention(active[1], active[2], active[3]) if active else f"Игрок #{game.active_seat}"
 
         players_list = []
-        for seat_no, tg_user_id, username, first_name, status in players:
+        for seat_no, tg_user_id, username, first_name, _status in players:
             players_list.append(f"{seat_no}. {mention(tg_user_id, username, first_name)}")
         players_text = "\n".join(players_list)
 

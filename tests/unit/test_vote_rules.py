@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.vote_rules import votes_in_round, total_votes, exiled_total
+from app.services.vote_rules import exiled_total, total_votes, votes_in_round
 
 
 @pytest.mark.parametrize("n", list(range(4, 17)))

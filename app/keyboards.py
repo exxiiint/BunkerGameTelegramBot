@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
 def main_menu_kb() -> InlineKeyboardMarkup:

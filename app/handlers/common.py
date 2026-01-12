@@ -7,7 +7,7 @@ from aiogram.types import CallbackQuery, Message
 
 from app.db.base import session_scope
 from app.keyboards import main_menu_kb
-from app.services import lobby_service, game_service
+from app.services import game_service, lobby_service
 from app.states import JoinLobbyState
 
 router = Router()

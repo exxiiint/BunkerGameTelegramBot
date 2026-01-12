@@ -8,7 +8,7 @@ from loguru import logger
 
 from app.config import settings
 from app.db.base import init_db
-from app.handlers import common, lobby, game
+from app.handlers import common, game, lobby
 
 
 async def main() -> None:

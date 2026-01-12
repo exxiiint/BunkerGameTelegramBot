@@ -4,7 +4,6 @@ import random
 from dataclasses import dataclass
 from typing import Dict, List
 
-
 CHARACTER_CATEGORIES = [
     ("profession", "Профессия"),
     ("health", "Здоровье"),

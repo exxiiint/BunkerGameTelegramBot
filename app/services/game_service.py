@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import and_, delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
@@ -24,7 +24,10 @@ from app.db.models import (
     User,
     Vote,
 )
-from app.services.cards import CardData, BunkerCardData, generate_bunker_cards, generate_character_cards
+from app.services.cards import (
+    generate_bunker_cards,
+    generate_character_cards,
+)
 from app.services.vote_rules import seats_in_bunker, votes_in_round
 
 
@@ -518,7 +521,6 @@ async def _after_exile(session: AsyncSession, game: Game) -> dict:
         return {"tie": False, "exiled_seat": game.last_exiled_seat, "round_ended": False, "game_finished": False}
 
     # Round voting finished
-    round_ended = True
     players = await _get_players(session, game.id)
     alive_seats = sorted([p.seat_no for p in players if p.status == PlayerStatus.ALIVE])
 

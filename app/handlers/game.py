@@ -5,10 +5,10 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
 from app.db.base import session_scope
-from app.keyboards import after_game_kb, bunker_choice_kb, main_menu_kb, reveal_choice_kb, vote_kb
-from app.services import game_service, lobby_service
+from app.keyboards import after_game_kb, bunker_choice_kb, reveal_choice_kb, vote_kb
+from app.services import game_service
 from app.services.cards import CHARACTER_CATEGORIES
-from app.utils.formatting import mention, escape, display_name
+from app.utils.formatting import display_name, escape, mention
 
 router = Router()
 
@@ -175,9 +175,9 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
                 callback.bot,
                 res.players,
                 text=(
-                    f"🗳 <b>Круг завершён.</b>\n"
-                    f"Общее обсуждение ~1 минута, затем голосование начнётся в личке у каждого.\n"
-                    f"(Вы можете сразу голосовать — бот посчитает, когда все проголосуют.)"
+                    "🗳 <b>Круг завершён.</b>\n"
+                    "Общее обсуждение ~1 минута, затем голосование начнётся в личке у каждого.\n"
+                    "(Вы можете сразу голосовать — бот посчитает, когда все проголосуют.)"
                 ),
                 parse_mode="HTML",
             )
@@ -351,7 +351,7 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
         async with session_scope() as session:
             events = await game_service.get_game_events(session, game_id, limit=30)
 
-        lines = [f"📜 <b>История партии</b> (последние 30 событий):"]
+        lines = ["📜 <b>История партии</b> (последние 30 событий):"]
         for e in reversed(events):
             ts = e.created_at.strftime("%H:%M:%S")
             lines.append(f"• <code>{ts}</code> — <b>{escape(e.type)}</b> {escape(str(e.payload))}")
@@ -387,7 +387,7 @@ async def cmd_history(message: Message) -> None:
             return
         events = await game_service.get_game_events(session, game.id, limit=30)
 
-    lines = [f"📜 <b>История партии</b> (последние 30 событий):"]
+    lines = ["📜 <b>История партии</b> (последние 30 событий):"]
     for e in reversed(events):
         ts = e.created_at.strftime("%H:%M:%S")
         lines.append(f"• <code>{ts}</code> — <b>{escape(e.type)}</b> {escape(str(e.payload))}")
