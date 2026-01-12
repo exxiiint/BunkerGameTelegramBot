@@ -283,7 +283,7 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
             )
 
             # Send full reveals per player to everyone (could be spammy but OK for small games)
-            for seat_no, (tg_user_id, username, first_name, status, cards) in cards_rows.items():
+            for seat_no, (tg_user_id, username, first_name, _status, cards) in cards_rows.items():
                 lines = []
                 for c in cards:
                     mark = "✅" if c.is_revealed else "🟦"

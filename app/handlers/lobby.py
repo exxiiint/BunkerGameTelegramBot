@@ -89,7 +89,7 @@ async def cb_lobby_actions(callback: CallbackQuery) -> None:
 
             # Preload personal cards for each user
             player_cards_map = {}
-            for seat_no, tg_user_id, username, first_name, status in players:
+            for _seat_no, tg_user_id, _username, _first_name, _status in players:
                 cards = await game_service.get_player_cards(session, game.id, tg_user_id)
                 player_cards_map[tg_user_id] = cards
 
@@ -114,7 +114,7 @@ async def cb_lobby_actions(callback: CallbackQuery) -> None:
             players_list.append(f"{seat_no}. {mention(tg_user_id, username, first_name)}")
         players_text = "\n".join(players_list)
 
-        for seat_no, tg_user_id, username, first_name, status in players:
+        for _seat_no, tg_user_id, _username, _first_name, _status in players:
             # Personal cards in private chat
             cards = player_cards_map.get(tg_user_id, [])
             card_lines = []
@@ -147,7 +147,7 @@ async def cb_lobby_actions(callback: CallbackQuery) -> None:
                 parse_mode="HTML",
             )
         # Inform everyone whose turn
-        for seat_no, tg_user_id, username, first_name, status in players:
+        for _seat_no, tg_user_id, _username, _first_name, _status in players:
             await callback.bot.send_message(
                 chat_id=tg_user_id,
                 text=f"🔦 Раунд {game.round_no} начинается. Активный игрок: {active_name}",
