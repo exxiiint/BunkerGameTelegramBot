@@ -26,7 +26,9 @@ def test_total_votes_equals_exiled_total(n: int) -> None:
         (16, 2, 2, 2, 2),
     ],
 )
-def test_votes_table(n: int, expected_r2: int, expected_r3: int, expected_r4: int, expected_r5: int) -> None:
+def test_votes_table(
+    n: int, expected_r2: int, expected_r3: int, expected_r4: int, expected_r5: int
+) -> None:
     assert votes_in_round(n, 1) == 0
     assert votes_in_round(n, 2) == expected_r2
     assert votes_in_round(n, 3) == expected_r3

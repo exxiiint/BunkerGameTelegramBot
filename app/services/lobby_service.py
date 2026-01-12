@@ -25,10 +25,18 @@ def _generate_code(length: int = 6) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-async def ensure_user(session: AsyncSession, tg_user_id: int, username: str | None, first_name: str | None, last_name: str | None) -> User:
+async def ensure_user(
+    session: AsyncSession,
+    tg_user_id: int,
+    username: str | None,
+    first_name: str | None,
+    last_name: str | None,
+) -> User:
     user = await session.get(User, tg_user_id)
     if user is None:
-        user = User(tg_user_id=tg_user_id, username=username, first_name=first_name, last_name=last_name)
+        user = User(
+            tg_user_id=tg_user_id, username=username, first_name=first_name, last_name=last_name
+        )
         session.add(user)
         await session.flush()
         return user
@@ -76,7 +84,11 @@ async def get_lobby_by_code(session: AsyncSession, code: str) -> Optional[Lobby]
 
 
 async def add_member(session: AsyncSession, lobby_id: int, tg_user_id: int) -> LobbyMember:
-    existing = await session.scalar(select(LobbyMember).where(LobbyMember.lobby_id == lobby_id, LobbyMember.tg_user_id == tg_user_id))
+    existing = await session.scalar(
+        select(LobbyMember).where(
+            LobbyMember.lobby_id == lobby_id, LobbyMember.tg_user_id == tg_user_id
+        )
+    )
     if existing is not None:
         return existing
     member = LobbyMember(lobby_id=lobby_id, tg_user_id=tg_user_id, is_ready=False)
@@ -86,7 +98,11 @@ async def add_member(session: AsyncSession, lobby_id: int, tg_user_id: int) -> L
 
 
 async def toggle_ready(session: AsyncSession, lobby_id: int, tg_user_id: int) -> bool:
-    member = await session.scalar(select(LobbyMember).where(LobbyMember.lobby_id == lobby_id, LobbyMember.tg_user_id == tg_user_id))
+    member = await session.scalar(
+        select(LobbyMember).where(
+            LobbyMember.lobby_id == lobby_id, LobbyMember.tg_user_id == tg_user_id
+        )
+    )
     if member is None:
         raise ValueError("Not a lobby member")
     member.is_ready = not member.is_ready
@@ -100,15 +116,23 @@ async def lobby_view(session: AsyncSession, lobby_id: int) -> LobbyView:
     if lobby is None:
         raise ValueError("Lobby not found")
 
-    rows = (await session.execute(
-        select(LobbyMember.tg_user_id, User.username, LobbyMember.is_ready)
-        .join(User, User.tg_user_id == LobbyMember.tg_user_id)
-        .where(LobbyMember.lobby_id == lobby_id)
-        .order_by(LobbyMember.joined_at.asc())
-    )).all()
+    rows = (
+        await session.execute(
+            select(LobbyMember.tg_user_id, User.username, LobbyMember.is_ready)
+            .join(User, User.tg_user_id == LobbyMember.tg_user_id)
+            .where(LobbyMember.lobby_id == lobby_id)
+            .order_by(LobbyMember.joined_at.asc())
+        )
+    ).all()
 
     members = [(r[0], r[1], r[2]) for r in rows]
-    return LobbyView(id=lobby.id, code=lobby.code, owner_tg_user_id=lobby.owner_tg_user_id, status=lobby.status, members=members)
+    return LobbyView(
+        id=lobby.id,
+        code=lobby.code,
+        owner_tg_user_id=lobby.owner_tg_user_id,
+        status=lobby.status,
+        members=members,
+    )
 
 
 async def user_current_lobby(session: AsyncSession, tg_user_id: int) -> Optional[Lobby]:

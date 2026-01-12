@@ -45,7 +45,9 @@ async def cb_lobby_actions(callback: CallbackQuery) -> None:
                 last_name=callback.from_user.last_name,
             )
             try:
-                is_ready = await lobby_service.toggle_ready(session, lobby_id, callback.from_user.id)
+                is_ready = await lobby_service.toggle_ready(
+                    session, lobby_id, callback.from_user.id
+                )
             except Exception:
                 await callback.answer("Вы не в этом лобби", show_alert=True)
                 return
@@ -79,7 +81,9 @@ async def cb_lobby_actions(callback: CallbackQuery) -> None:
         # Only owner can start; require ready; create game, deal cards, send messages
         async with session_scope() as session:
             try:
-                game = await game_service.start_game(session, lobby_id=lobby_id, initiator_tg_user_id=callback.from_user.id)
+                game = await game_service.start_game(
+                    session, lobby_id=lobby_id, initiator_tg_user_id=callback.from_user.id
+                )
             except game_service.GameError as e:
                 await callback.answer(str(e), show_alert=True)
                 return
@@ -107,7 +111,9 @@ async def cb_lobby_actions(callback: CallbackQuery) -> None:
         # active seat is 1 by our start_game() logic
         # Find active player mention
         active = next((p for p in players if p[0] == game.active_seat), None)
-        active_name = mention(active[1], active[2], active[3]) if active else f"Игрок #{game.active_seat}"
+        active_name = (
+            mention(active[1], active[2], active[3]) if active else f"Игрок #{game.active_seat}"
+        )
 
         players_list = []
         for seat_no, tg_user_id, username, first_name, _status in players:

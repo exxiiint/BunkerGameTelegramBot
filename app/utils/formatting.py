@@ -7,7 +7,9 @@ def escape(text: str) -> str:
     return html.escape(text, quote=True)
 
 
-def display_name(username: str | None, first_name: str | None, tg_user_id: int | None = None) -> str:
+def display_name(
+    username: str | None, first_name: str | None, tg_user_id: int | None = None
+) -> str:
     if username:
         return f"@{username}"
     if first_name:

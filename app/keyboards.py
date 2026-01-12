@@ -16,7 +16,10 @@ def main_menu_kb() -> InlineKeyboardMarkup:
 
 def lobby_kb(lobby_id: int, is_owner: bool, is_ready: bool) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
-    kb.button(text=("✅ Готов" if not is_ready else "❌ Не готов"), callback_data=f"l:{lobby_id}:toggle_ready")
+    kb.button(
+        text=("✅ Готов" if not is_ready else "❌ Не готов"),
+        callback_data=f"l:{lobby_id}:toggle_ready",
+    )
     kb.button(text="🔄 Обновить", callback_data=f"l:{lobby_id}:refresh")
     if is_owner:
         kb.button(text="🚀 Старт игры", callback_data=f"l:{lobby_id}:start_game")
@@ -27,7 +30,9 @@ def lobby_kb(lobby_id: int, is_owner: bool, is_ready: bool) -> InlineKeyboardMar
 def bunker_choice_kb(game_id: int, closed_slots: list[int]) -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     for slot in closed_slots:
-        kb.button(text=f"Открыть карту бункера #{slot}", callback_data=f"g:{game_id}:open_bunker:{slot}")
+        kb.button(
+            text=f"Открыть карту бункера #{slot}", callback_data=f"g:{game_id}:open_bunker:{slot}"
+        )
     kb.adjust(1)
     return kb.as_markup()
 

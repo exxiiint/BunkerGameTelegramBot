@@ -226,7 +226,9 @@ def _ensure_enough(pool: list[str], n: int, category: str) -> None:
         )
 
 
-def generate_character_cards(players_count: int, rng: random.Random | None = None) -> Dict[int, List[CardData]]:
+def generate_character_cards(
+    players_count: int, rng: random.Random | None = None
+) -> Dict[int, List[CardData]]:
     """Generate a fixed set of 5 character cards per seat."""
     rng = rng or random.Random()
 

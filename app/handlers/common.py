@@ -25,8 +25,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
             last_name=message.from_user.last_name,
         )
     await message.answer(
-        "👋 Привет! Я бот для игры «Бункер» (базовый режим).\n\n"
-        "Выбери действие:",
+        "👋 Привет! Я бот для игры «Бункер» (базовый режим).\n\n" "Выбери действие:",
         reply_markup=main_menu_kb(),
     )
 
@@ -34,9 +33,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data == "m:menu")
 async def cb_menu(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.message.edit_text(
-        "🏠 Главное меню:", reply_markup=main_menu_kb()
-    )
+    await callback.message.edit_text("🏠 Главное меню:", reply_markup=main_menu_kb())
     await callback.answer()
 
 
@@ -90,7 +87,9 @@ async def msg_join_code(message: Message, state: FSMContext) -> None:
         )
         lobby = await lobby_service.get_lobby_by_code(session, code)
         if lobby is None or lobby.status != lobby_service.LobbyStatus.OPEN:
-            await message.answer("Не нашёл открытое лобби с таким кодом 😕 Попробуйте другой код или создайте новое лобби.")
+            await message.answer(
+                "Не нашёл открытое лобби с таким кодом 😕 Попробуйте другой код или создайте новое лобби."
+            )
             return
         await lobby_service.add_member(session, lobby.id, message.from_user.id)
 
@@ -115,7 +114,10 @@ async def cb_my_lobby(callback: CallbackQuery) -> None:
         )
         lobby = await lobby_service.user_current_lobby(session, callback.from_user.id)
         if lobby is None:
-            await callback.message.edit_text("У вас нет открытого лобби. Создайте новое или присоединитесь по коду.", reply_markup=main_menu_kb())
+            await callback.message.edit_text(
+                "У вас нет открытого лобби. Создайте новое или присоединитесь по коду.",
+                reply_markup=main_menu_kb(),
+            )
             await callback.answer()
             return
 
@@ -153,5 +155,8 @@ async def cb_my_game(callback: CallbackQuery) -> None:
         return
 
     from app.handlers.game import render_game_brief
-    await callback.message.edit_text(render_game_brief(game), reply_markup=main_menu_kb(), parse_mode="HTML")
+
+    await callback.message.edit_text(
+        render_game_brief(game), reply_markup=main_menu_kb(), parse_mode="HTML"
+    )
     await callback.answer()

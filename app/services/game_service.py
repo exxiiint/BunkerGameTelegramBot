@@ -101,12 +101,20 @@ async def _get_game_locked(session: AsyncSession, game_id: int) -> Game:
 
 
 async def _get_players(session: AsyncSession, game_id: int) -> list[PlayerInfo]:
-    rows = (await session.execute(
-        select(GamePlayer.seat_no, GamePlayer.tg_user_id, User.username, User.first_name, GamePlayer.status)
-        .join(User, User.tg_user_id == GamePlayer.tg_user_id)
-        .where(GamePlayer.game_id == game_id)
-        .order_by(GamePlayer.seat_no.asc())
-    )).all()
+    rows = (
+        await session.execute(
+            select(
+                GamePlayer.seat_no,
+                GamePlayer.tg_user_id,
+                User.username,
+                User.first_name,
+                GamePlayer.status,
+            )
+            .join(User, User.tg_user_id == GamePlayer.tg_user_id)
+            .where(GamePlayer.game_id == game_id)
+            .order_by(GamePlayer.seat_no.asc())
+        )
+    ).all()
     return [
         PlayerInfo(seat_no=r[0], tg_user_id=r[1], username=r[2], first_name=r[3], status=r[4])
         for r in rows
@@ -132,12 +140,14 @@ async def start_game(session: AsyncSession, lobby_id: int, initiator_tg_user_id:
         raise Forbidden("Only lobby owner can start the game")
 
     # Fetch members in join order
-    members = (await session.execute(
-        select(LobbyMember.tg_user_id, LobbyMember.is_ready, User.username, User.first_name)
-        .join(User, User.tg_user_id == LobbyMember.tg_user_id)
-        .where(LobbyMember.lobby_id == lobby_id)
-        .order_by(LobbyMember.joined_at.asc())
-    )).all()
+    members = (
+        await session.execute(
+            select(LobbyMember.tg_user_id, LobbyMember.is_ready, User.username, User.first_name)
+            .join(User, User.tg_user_id == LobbyMember.tg_user_id)
+            .where(LobbyMember.lobby_id == lobby_id)
+            .order_by(LobbyMember.joined_at.asc())
+        )
+    ).all()
 
     if len(members) < 4 or len(members) > 16:
         raise BadState("Base Mode supports 4..16 players")
@@ -170,7 +180,9 @@ async def start_game(session: AsyncSession, lobby_id: int, initiator_tg_user_id:
     # Create players with seat numbers
     for idx, row in enumerate(members, start=1):
         tg_user_id = int(row[0])
-        gp = GamePlayer(game_id=game.id, tg_user_id=tg_user_id, seat_no=idx, status=PlayerStatus.ALIVE)
+        gp = GamePlayer(
+            game_id=game.id, tg_user_id=tg_user_id, seat_no=idx, status=PlayerStatus.ALIVE
+        )
         session.add(gp)
 
     # Generate cards
@@ -208,13 +220,21 @@ async def start_game(session: AsyncSession, lobby_id: int, initiator_tg_user_id:
     lobby.status = LobbyStatus.IN_GAME
     session.add(lobby)
 
-    session.add(GameEvent(game_id=game.id, type="game_started", payload={"players_count": players_count, "seats_in_bunker": bunker_seats, "seed": seed}))
+    session.add(
+        GameEvent(
+            game_id=game.id,
+            type="game_started",
+            payload={"players_count": players_count, "seats_in_bunker": bunker_seats, "seed": seed},
+        )
+    )
 
     await session.flush()
     return game
 
 
-async def open_bunker_card(session: AsyncSession, game_id: int, actor_tg_user_id: int, slot_no: int) -> OpenBunkerResult:
+async def open_bunker_card(
+    session: AsyncSession, game_id: int, actor_tg_user_id: int, slot_no: int
+) -> OpenBunkerResult:
     game = await _get_game_locked(session, game_id)
     if game.status != GameStatus.ACTIVE or game.phase != GamePhase.BUNKER_CHOICE:
         raise BadState("Сейчас нельзя открывать карту бункера")
@@ -230,7 +250,11 @@ async def open_bunker_card(session: AsyncSession, game_id: int, actor_tg_user_id
     if actor.seat_no != game.active_seat:
         raise Forbidden("Сейчас не ваш ход (карту бункера открывает активный игрок)")
 
-    card = await session.scalar(select(BunkerCard).where(BunkerCard.game_id == game_id, BunkerCard.slot_no == slot_no).with_for_update())
+    card = await session.scalar(
+        select(BunkerCard)
+        .where(BunkerCard.game_id == game_id, BunkerCard.slot_no == slot_no)
+        .with_for_update()
+    )
     if card is None:
         raise NotFound("Карта бункера не найдена")
     if card.is_opened:
@@ -246,13 +270,27 @@ async def open_bunker_card(session: AsyncSession, game_id: int, actor_tg_user_id
     game.turn_seat = game.active_seat
     session.add(game)
 
-    session.add(GameEvent(game_id=game.id, type="bunker_opened", payload={"slot_no": slot_no, "title": card.title, "body": card.body, "round_no": game.round_no, "by_seat": actor.seat_no}))
+    session.add(
+        GameEvent(
+            game_id=game.id,
+            type="bunker_opened",
+            payload={
+                "slot_no": slot_no,
+                "title": card.title,
+                "body": card.body,
+                "round_no": game.round_no,
+                "by_seat": actor.seat_no,
+            },
+        )
+    )
 
     await session.flush()
     return OpenBunkerResult(opened=card, game=game, players=players)
 
 
-async def reveal_card(session: AsyncSession, game_id: int, actor_tg_user_id: int, category: Optional[str]) -> RevealResult:
+async def reveal_card(
+    session: AsyncSession, game_id: int, actor_tg_user_id: int, category: Optional[str]
+) -> RevealResult:
     game = await _get_game_locked(session, game_id)
     if game.status != GameStatus.ACTIVE or game.phase != GamePhase.REVEAL_TURN:
         raise BadState("Сейчас нельзя раскрывать карты")
@@ -275,7 +313,11 @@ async def reveal_card(session: AsyncSession, game_id: int, actor_tg_user_id: int
     # Find unrevealed card for this seat in that category
     card = await session.scalar(
         select(PlayerCard)
-        .where(PlayerCard.game_id == game_id, PlayerCard.seat_no == actor.seat_no, PlayerCard.category == category)
+        .where(
+            PlayerCard.game_id == game_id,
+            PlayerCard.seat_no == actor.seat_no,
+            PlayerCard.category == category,
+        )
         .with_for_update()
     )
     if card is None:
@@ -288,7 +330,19 @@ async def reveal_card(session: AsyncSession, game_id: int, actor_tg_user_id: int
     card.revealed_at = datetime.now(tz=timezone.utc)
     session.add(card)
 
-    session.add(GameEvent(game_id=game.id, type="card_revealed", payload={"seat_no": actor.seat_no, "category": card.category, "title": card.title, "body": card.body, "round_no": game.round_no}))
+    session.add(
+        GameEvent(
+            game_id=game.id,
+            type="card_revealed",
+            payload={
+                "seat_no": actor.seat_no,
+                "category": card.category,
+                "title": card.title,
+                "body": card.body,
+                "round_no": game.round_no,
+            },
+        )
+    )
 
     # Advance turn
     alive_seats = [p.seat_no for p in players if p.status == PlayerStatus.ALIVE]
@@ -357,10 +411,14 @@ async def voting_start_info(session: AsyncSession, game_id: int) -> VotingStart:
         voter_seats.append(game.last_exiled_seat)
 
     voter_seats = sorted(set(voter_seats))
-    return VotingStart(game=game, players=players, voter_seats=voter_seats, candidate_seats=candidate_seats)
+    return VotingStart(
+        game=game, players=players, voter_seats=voter_seats, candidate_seats=candidate_seats
+    )
 
 
-async def cast_vote(session: AsyncSession, game_id: int, actor_tg_user_id: int, target_seat: int) -> VoteCastResult:
+async def cast_vote(
+    session: AsyncSession, game_id: int, actor_tg_user_id: int, target_seat: int
+) -> VoteCastResult:
     game = await _get_game_locked(session, game_id)
     if game.status != GameStatus.ACTIVE or game.phase != GamePhase.VOTING:
         raise BadState("Сейчас не идёт голосование")
@@ -397,7 +455,19 @@ async def cast_vote(session: AsyncSession, game_id: int, actor_tg_user_id: int, 
         target_seat=target_seat,
     )
     session.add(v)
-    session.add(GameEvent(game_id=game.id, type="vote_cast", payload={"round_no": game.round_no, "vote_no": game.vote_no, "attempt": game.vote_attempt, "voter_seat": actor.seat_no, "target_seat": target_seat}))
+    session.add(
+        GameEvent(
+            game_id=game.id,
+            type="vote_cast",
+            payload={
+                "round_no": game.round_no,
+                "vote_no": game.vote_no,
+                "attempt": game.vote_attempt,
+                "voter_seat": actor.seat_no,
+                "target_seat": target_seat,
+            },
+        )
+    )
 
     await session.flush()
 
@@ -449,16 +519,18 @@ async def _finalize_vote(
     candidate_seats: list[int],
 ) -> dict:
     # Count votes for current attempt
-    rows = (await session.execute(
-        select(Vote.target_seat, func.count(Vote.id))
-        .where(
-            Vote.game_id == game.id,
-            Vote.round_no == game.round_no,
-            Vote.vote_no == game.vote_no,
-            Vote.attempt == game.vote_attempt,
+    rows = (
+        await session.execute(
+            select(Vote.target_seat, func.count(Vote.id))
+            .where(
+                Vote.game_id == game.id,
+                Vote.round_no == game.round_no,
+                Vote.vote_no == game.vote_no,
+                Vote.attempt == game.vote_attempt,
+            )
+            .group_by(Vote.target_seat)
         )
-        .group_by(Vote.target_seat)
-    )).all()
+    ).all()
 
     counts = {int(r[0]): int(r[1]) for r in rows}
     if not counts:
@@ -474,7 +546,13 @@ async def _finalize_vote(
             game.vote_attempt = 2
             game.vote_candidate_seats = top
             session.add(game)
-            session.add(GameEvent(game_id=game.id, type="vote_tie", payload={"round_no": game.round_no, "vote_no": game.vote_no, "candidates": top}))
+            session.add(
+                GameEvent(
+                    game_id=game.id,
+                    type="vote_tie",
+                    payload={"round_no": game.round_no, "vote_no": game.vote_no, "candidates": top},
+                )
+            )
             return {"tie": True, "tie_candidates": top}
         else:
             # Second tie: random elimination among tied
@@ -488,7 +566,11 @@ async def _finalize_vote(
 
 
 async def _exile_player(session: AsyncSession, game: Game, seat_no: int) -> None:
-    gp = await session.scalar(select(GamePlayer).where(GamePlayer.game_id == game.id, GamePlayer.seat_no == seat_no).with_for_update())
+    gp = await session.scalar(
+        select(GamePlayer)
+        .where(GamePlayer.game_id == game.id, GamePlayer.seat_no == seat_no)
+        .with_for_update()
+    )
     if gp is None:
         raise NotFound("Player not found")
     if gp.status != PlayerStatus.ALIVE:
@@ -500,7 +582,13 @@ async def _exile_player(session: AsyncSession, game: Game, seat_no: int) -> None
     game.last_exiled_seat = seat_no
     session.add(game)
 
-    session.add(GameEvent(game_id=game.id, type="player_exiled", payload={"seat_no": seat_no, "round_no": game.round_no, "vote_no": game.vote_no}))
+    session.add(
+        GameEvent(
+            game_id=game.id,
+            type="player_exiled",
+            payload={"seat_no": seat_no, "round_no": game.round_no, "vote_no": game.vote_no},
+        )
+    )
 
 
 async def _after_exile(session: AsyncSession, game: Game) -> dict:
@@ -517,8 +605,19 @@ async def _after_exile(session: AsyncSession, game: Game) -> dict:
         game.vote_candidate_seats = None
         game.phase = GamePhase.VOTING
         session.add(game)
-        session.add(GameEvent(game_id=game.id, type="voting_next", payload={"round_no": game.round_no, "vote_no": game.vote_no}))
-        return {"tie": False, "exiled_seat": game.last_exiled_seat, "round_ended": False, "game_finished": False}
+        session.add(
+            GameEvent(
+                game_id=game.id,
+                type="voting_next",
+                payload={"round_no": game.round_no, "vote_no": game.vote_no},
+            )
+        )
+        return {
+            "tie": False,
+            "exiled_seat": game.last_exiled_seat,
+            "round_ended": False,
+            "game_finished": False,
+        }
 
     # Round voting finished
     players = await _get_players(session, game.id)
@@ -534,8 +633,15 @@ async def _after_exile(session: AsyncSession, game: Game) -> dict:
         game.phase = GamePhase.FINISHED
         game.finished_at = datetime.now(tz=timezone.utc)
         session.add(game)
-        session.add(GameEvent(game_id=game.id, type="game_finished", payload={"alive_seats": alive_seats}))
-        return {"tie": False, "exiled_seat": game.last_exiled_seat, "round_ended": True, "game_finished": True}
+        session.add(
+            GameEvent(game_id=game.id, type="game_finished", payload={"alive_seats": alive_seats})
+        )
+        return {
+            "tie": False,
+            "exiled_seat": game.last_exiled_seat,
+            "round_ended": True,
+            "game_finished": True,
+        }
 
     # Next round begins with next alive after the one who started this round
     game.round_no += 1
@@ -543,24 +649,51 @@ async def _after_exile(session: AsyncSession, game: Game) -> dict:
     game.turn_seat = game.active_seat
     game.phase = GamePhase.BUNKER_CHOICE
     session.add(game)
-    session.add(GameEvent(game_id=game.id, type="round_started", payload={"round_no": game.round_no, "active_seat": game.active_seat}))
-    return {"tie": False, "exiled_seat": game.last_exiled_seat, "round_ended": True, "game_finished": False}
+    session.add(
+        GameEvent(
+            game_id=game.id,
+            type="round_started",
+            payload={"round_no": game.round_no, "active_seat": game.active_seat},
+        )
+    )
+    return {
+        "tie": False,
+        "exiled_seat": game.last_exiled_seat,
+        "round_ended": True,
+        "game_finished": False,
+    }
 
 
-async def get_player_cards(session: AsyncSession, game_id: int, tg_user_id: int) -> list[PlayerCard]:
-    players = await session.execute(select(GamePlayer.seat_no).where(GamePlayer.game_id == game_id, GamePlayer.tg_user_id == tg_user_id))
+async def get_player_cards(
+    session: AsyncSession, game_id: int, tg_user_id: int
+) -> list[PlayerCard]:
+    players = await session.execute(
+        select(GamePlayer.seat_no).where(
+            GamePlayer.game_id == game_id, GamePlayer.tg_user_id == tg_user_id
+        )
+    )
     seat_no = players.scalar_one_or_none()
     if seat_no is None:
         raise Forbidden("Вы не участник этой партии")
 
-    cards = (await session.execute(
-        select(PlayerCard).where(PlayerCard.game_id == game_id, PlayerCard.seat_no == seat_no).order_by(PlayerCard.id.asc())
-    )).scalars().all()
+    cards = (
+        (
+            await session.execute(
+                select(PlayerCard)
+                .where(PlayerCard.game_id == game_id, PlayerCard.seat_no == seat_no)
+                .order_by(PlayerCard.id.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
     return list(cards)
 
 
 async def get_game_by_lobby(session: AsyncSession, lobby_id: int) -> Optional[Game]:
-    return await session.scalar(select(Game).where(Game.lobby_id == lobby_id).order_by(Game.created_at.desc()).limit(1))
+    return await session.scalar(
+        select(Game).where(Game.lobby_id == lobby_id).order_by(Game.created_at.desc()).limit(1)
+    )
 
 
 async def get_user_active_game(session: AsyncSession, tg_user_id: int) -> Optional[Game]:
@@ -578,23 +711,48 @@ async def get_user_active_game(session: AsyncSession, tg_user_id: int) -> Option
 
 async def get_game_events(session: AsyncSession, game_id: int, limit: int = 50) -> list[GameEvent]:
     return list(
-        (await session.execute(
-            select(GameEvent).where(GameEvent.game_id == game_id).order_by(GameEvent.created_at.desc()).limit(limit)
-        )).scalars().all()
+        (
+            await session.execute(
+                select(GameEvent)
+                .where(GameEvent.game_id == game_id)
+                .order_by(GameEvent.created_at.desc())
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
     )
 
 
 async def get_bunker_cards(session: AsyncSession, game_id: int) -> list[BunkerCard]:
     return list(
-        (await session.execute(select(BunkerCard).where(BunkerCard.game_id == game_id).order_by(BunkerCard.slot_no.asc()))).scalars().all()
+        (
+            await session.execute(
+                select(BunkerCard)
+                .where(BunkerCard.game_id == game_id)
+                .order_by(BunkerCard.slot_no.asc())
+            )
+        )
+        .scalars()
+        .all()
     )
 
 
-async def get_game_players_full(session: AsyncSession, game_id: int) -> list[tuple[int, int, str | None, str | None, PlayerStatus]]:
-    rows = (await session.execute(
-        select(GamePlayer.seat_no, GamePlayer.tg_user_id, User.username, User.first_name, GamePlayer.status)
-        .join(User, User.tg_user_id == GamePlayer.tg_user_id)
-        .where(GamePlayer.game_id == game_id)
-        .order_by(GamePlayer.seat_no.asc())
-    )).all()
+async def get_game_players_full(
+    session: AsyncSession, game_id: int
+) -> list[tuple[int, int, str | None, str | None, PlayerStatus]]:
+    rows = (
+        await session.execute(
+            select(
+                GamePlayer.seat_no,
+                GamePlayer.tg_user_id,
+                User.username,
+                User.first_name,
+                GamePlayer.status,
+            )
+            .join(User, User.tg_user_id == GamePlayer.tg_user_id)
+            .where(GamePlayer.game_id == game_id)
+            .order_by(GamePlayer.seat_no.asc())
+        )
+    ).all()
     return [(int(r[0]), int(r[1]), r[2], r[3], r[4]) for r in rows]

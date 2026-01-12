@@ -48,15 +48,14 @@ async def _send_reveal_prompt(bot, game, players: list[game_service.PlayerInfo])
 
     if not categories:
         # Should not happen
-        await bot.send_message(current.tg_user_id, "У вас нет карт для раскрытия (похоже на баг). Напишите /start.")
+        await bot.send_message(
+            current.tg_user_id, "У вас нет карт для раскрытия (похоже на баг). Напишите /start."
+        )
         return
 
     await bot.send_message(
         chat_id=current.tg_user_id,
-        text=(
-            f"🗣 <b>Ваш ход</b> (Раунд {game.round_no}).\n"
-            f"Раскройте одну карту персонажа."
-        ),
+        text=(f"🗣 <b>Ваш ход</b> (Раунд {game.round_no}).\n" f"Раскройте одну карту персонажа."),
         reply_markup=reveal_choice_kb(game.id, categories),
         parse_mode="HTML",
     )
@@ -118,14 +117,23 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
         slot_no = int(param or "0")
         async with session_scope() as session:
             try:
-                res = await game_service.open_bunker_card(session, game_id=game_id, actor_tg_user_id=callback.from_user.id, slot_no=slot_no)
+                res = await game_service.open_bunker_card(
+                    session,
+                    game_id=game_id,
+                    actor_tg_user_id=callback.from_user.id,
+                    slot_no=slot_no,
+                )
             except game_service.GameError as e:
                 await callback.answer(str(e), show_alert=True)
                 return
 
         # Announce opened bunker card
         opener = next((p for p in res.players if p.seat_no == res.game.active_seat), None)
-        opener_name = mention(opener.tg_user_id, opener.username, opener.first_name) if opener else f"Игрок #{res.game.active_seat}"
+        opener_name = (
+            mention(opener.tg_user_id, opener.username, opener.first_name)
+            if opener
+            else f"Игрок #{res.game.active_seat}"
+        )
 
         await _broadcast(
             callback.bot,
@@ -149,14 +157,23 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
         category = param
         async with session_scope() as session:
             try:
-                res = await game_service.reveal_card(session, game_id=game_id, actor_tg_user_id=callback.from_user.id, category=category)
+                res = await game_service.reveal_card(
+                    session,
+                    game_id=game_id,
+                    actor_tg_user_id=callback.from_user.id,
+                    category=category,
+                )
             except game_service.GameError as e:
                 await callback.answer(str(e), show_alert=True)
                 return
 
         seat_map = _seat_to_user(res.players)
         revealer = seat_map.get(res.revealed.seat_no)
-        revealer_name = mention(revealer.tg_user_id, revealer.username, revealer.first_name) if revealer else f"Игрок #{res.revealed.seat_no}"
+        revealer_name = (
+            mention(revealer.tg_user_id, revealer.username, revealer.first_name)
+            if revealer
+            else f"Игрок #{res.revealed.seat_no}"
+        )
 
         await _broadcast(
             callback.bot,
@@ -200,9 +217,18 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
                     parse_mode="HTML",
                 )
             # Inform all
-            active_name = mention(active[1], active[2], active[3]) if active else f"Игрок #{res.game.active_seat}"
+            active_name = (
+                mention(active[1], active[2], active[3])
+                if active
+                else f"Игрок #{res.game.active_seat}"
+            )
             # res.players is from previous round, still ok; but update statuses might have changed? no exiles here.
-            await _broadcast(callback.bot, res.players, text=f"🔦 Раунд {res.game.round_no} начинается. Активный игрок: {active_name}", parse_mode="HTML")
+            await _broadcast(
+                callback.bot,
+                res.players,
+                text=f"🔦 Раунд {res.game.round_no} начинается. Активный игрок: {active_name}",
+                parse_mode="HTML",
+            )
         else:
             # Continue reveal circle, prompt next player
             await _send_reveal_prompt(callback.bot, res.game, res.players)
@@ -214,7 +240,12 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
         target_seat = int(param or "0")
         async with session_scope() as session:
             try:
-                res = await game_service.cast_vote(session, game_id=game_id, actor_tg_user_id=callback.from_user.id, target_seat=target_seat)
+                res = await game_service.cast_vote(
+                    session,
+                    game_id=game_id,
+                    actor_tg_user_id=callback.from_user.id,
+                    target_seat=target_seat,
+                )
             except game_service.GameError as e:
                 await callback.answer(str(e), show_alert=True)
                 return
@@ -243,15 +274,16 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
         if res.exiled_seat is not None:
             seat_map = _seat_to_user(res.players)
             ex = seat_map.get(res.exiled_seat)
-            ex_name = mention(ex.tg_user_id, ex.username, ex.first_name) if ex else f"Игрок #{res.exiled_seat}"
+            ex_name = (
+                mention(ex.tg_user_id, ex.username, ex.first_name)
+                if ex
+                else f"Игрок #{res.exiled_seat}"
+            )
 
             await _broadcast(
                 callback.bot,
                 res.players,
-                text=(
-                    f"🚫 <b>Игрок изгнан</b>\n"
-                    f"Изгнан: {ex_name}\n"
-                ),
+                text=(f"🚫 <b>Игрок изгнан</b>\n" f"Изгнан: {ex_name}\n"),
                 parse_mode="HTML",
             )
 
@@ -266,14 +298,27 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
                     cards_rows[seat_no] = (tg_user_id, username, first_name, status, cards)
 
             # survivors
-            alive = [seat for seat, (_, _, _, status, _) in cards_rows.items() if status == game_service.PlayerStatus.ALIVE]
+            alive = [
+                seat
+                for seat, (_, _, _, status, _) in cards_rows.items()
+                if status == game_service.PlayerStatus.ALIVE
+            ]
             alive_sorted = sorted(alive)
             survivors_text = ", ".join(f"#{s}" for s in alive_sorted)
 
             # Broadcast final
             await _broadcast(
                 callback.bot,
-                [game_service.PlayerInfo(seat_no=s, tg_user_id=cards_rows[s][0], username=cards_rows[s][1], first_name=cards_rows[s][2], status=cards_rows[s][3]) for s in cards_rows],
+                [
+                    game_service.PlayerInfo(
+                        seat_no=s,
+                        tg_user_id=cards_rows[s][0],
+                        username=cards_rows[s][1],
+                        first_name=cards_rows[s][2],
+                        status=cards_rows[s][3],
+                    )
+                    for s in cards_rows
+                ],
                 text=(
                     f"🏁 <b>Игра завершена!</b>\n"
                     f"В бункер попали: {survivors_text}\n\n"
@@ -290,15 +335,36 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
                     lines.append(f"{mark} <b>{escape(c.title)}</b>: {escape(c.body)}")
                 await _broadcast(
                     callback.bot,
-                    [game_service.PlayerInfo(seat_no=s, tg_user_id=cards_rows[s][0], username=cards_rows[s][1], first_name=cards_rows[s][2], status=cards_rows[s][3]) for s in cards_rows],
-                    text=(f"🧾 <b>Карты игрока #{seat_no}</b> ({mention(tg_user_id, username, first_name)}):\n" + "\n".join(lines)),
+                    [
+                        game_service.PlayerInfo(
+                            seat_no=s,
+                            tg_user_id=cards_rows[s][0],
+                            username=cards_rows[s][1],
+                            first_name=cards_rows[s][2],
+                            status=cards_rows[s][3],
+                        )
+                        for s in cards_rows
+                    ],
+                    text=(
+                        f"🧾 <b>Карты игрока #{seat_no}</b> ({mention(tg_user_id, username, first_name)}):\n"
+                        + "\n".join(lines)
+                    ),
                     parse_mode="HTML",
                 )
 
             # One more message with history button
             await _broadcast(
                 callback.bot,
-                [game_service.PlayerInfo(seat_no=s, tg_user_id=cards_rows[s][0], username=cards_rows[s][1], first_name=cards_rows[s][2], status=cards_rows[s][3]) for s in cards_rows],
+                [
+                    game_service.PlayerInfo(
+                        seat_no=s,
+                        tg_user_id=cards_rows[s][0],
+                        username=cards_rows[s][1],
+                        first_name=cards_rows[s][2],
+                        status=cards_rows[s][3],
+                    )
+                    for s in cards_rows
+                ],
                 text="📜 Можно открыть историю партии.",
                 reply_markup=after_game_kb(game_id),
             )
@@ -320,7 +386,9 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
             await _broadcast(
                 callback.bot,
                 res.players,
-                text=(f"🗳 Следующее голосование (Раунд {res.game.round_no}, голосование {res.game.vote_no}). Бот разослал бюллетени."),
+                text=(
+                    f"🗳 Следующее голосование (Раунд {res.game.round_no}, голосование {res.game.vote_no}). Бот разослал бюллетени."
+                ),
             )
             await _send_voting_ballots(callback.bot, game_id)
             return
@@ -330,7 +398,10 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
             game = await session.get(game_service.Game, game_id)  # type: ignore
             bunker_cards = await game_service.get_bunker_cards(session, game_id)
             players_full = await game_service.get_game_players_full(session, game_id)
-        if game is not None and getattr(game, "phase", None) == game_service.GamePhase.BUNKER_CHOICE:
+        if (
+            game is not None
+            and getattr(game, "phase", None) == game_service.GamePhase.BUNKER_CHOICE
+        ):
             closed_slots = [bc.slot_no for bc in bunker_cards if not bc.is_opened]
             active = next((p for p in players_full if p[0] == game.active_seat), None)
             if active:
@@ -343,8 +414,15 @@ async def cb_game_actions(callback: CallbackQuery) -> None:
                     reply_markup=bunker_choice_kb(game_id, closed_slots),
                     parse_mode="HTML",
                 )
-            active_name = mention(active[1], active[2], active[3]) if active else f"Игрок #{game.active_seat}"
-            await _broadcast(callback.bot, res.players, text=f"🔦 Раунд {game.round_no} начинается. Активный игрок: {active_name}", parse_mode="HTML")
+            active_name = (
+                mention(active[1], active[2], active[3]) if active else f"Игрок #{game.active_seat}"
+            )
+            await _broadcast(
+                callback.bot,
+                res.players,
+                text=f"🔦 Раунд {game.round_no} начинается. Активный игрок: {active_name}",
+                parse_mode="HTML",
+            )
         return
 
     if action == "history":
