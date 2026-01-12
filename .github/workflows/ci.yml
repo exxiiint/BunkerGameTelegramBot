@@ -40,7 +40,7 @@ jobs:
       - name: Build
         run: docker compose build
       - name: Mypy
-        run: docker compose run --rm bot mypy app
+        run: docker compose run --rm bot mypy
 
   unit:
     name: Unit tests
